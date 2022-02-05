@@ -26,7 +26,8 @@ library
                       Command.Password
 
     -- Modules included in this library but not exported.
-    other-modules: Command.Internal.Parser
+    other-modules: Command.Internal.Parser,
+                   Command.Internal.State
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

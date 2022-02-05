@@ -2,7 +2,9 @@ module Command.Password (
     genPass
 ) where
 
+import Control.Monad
 import System.Random
+import Command.Internal.State
 
 data CharType = CapitalLetter
               | SmallLetter
@@ -10,22 +12,29 @@ data CharType = CapitalLetter
               | Special
               deriving (Bounded, Enum, Show)
 
-genSmallLetter :: (RandomGen g) => g -> (Char, g)
-genSmallLetter = uniformR ('a', 'z')
+uniformSt :: (RandomGen g, Uniform a) => State g a
+uniformSt = State uniform
 
-genCapitalLetter :: (RandomGen g) => g -> (Char, g)
-genCapitalLetter = uniformR ('A', 'Z')
+uniformRSt :: (RandomGen g, UniformRange a) => (a, a) -> State g a
+uniformRSt range = State (uniformR range)
 
-genDigit :: (RandomGen g) => g -> (Char, g)
-genDigit = uniformR ('0', '9')
+genSmallLetter :: (RandomGen g) => State g Char
+genSmallLetter = uniformRSt ('a', 'z')
 
-genSpecial :: (RandomGen g) => g -> (Char, g)
-genSpecial g = let pool = "!.,<>&*()$%#@^{}[]"
-                   l = length pool
-                   (i, g') = uniformR (0, l-1) g
-               in (pool !! i, g')
+genCapitalLetter :: (RandomGen g) => State g Char
+genCapitalLetter = uniformRSt ('A', 'Z')
 
-genChar :: (RandomGen g) => CharType -> g -> (Char, g)
+genDigit :: (RandomGen g) => State g Char
+genDigit = uniformRSt ('0', '9')
+
+genSpecial :: (RandomGen g) => State g Char
+genSpecial = do
+    let pool = "!.,<>&*()$%#@^{}[]"
+        l = length pool
+    i <- uniformRSt (0, l-1)
+    return $ pool !! i
+
+genChar :: (RandomGen g) => CharType -> State g Char
 genChar CapitalLetter = genCapitalLetter
 genChar SmallLetter = genSmallLetter
 genChar Digit = genDigit
@@ -33,34 +42,25 @@ genChar Special = genSpecial
 
 -- | Generates a list of Character types which we are going
 -- to use in the future password, list of the desired length
-genTypes :: (RandomGen g) => Int -> g -> ([CharType], g)
-genTypes len g
-    | len <= 0  = ([], g)
-    | otherwise = let (t, g') = uniformR (min, max) g
-                  in t `app` genTypes (len-1) g'
-                  where
-                      min = fromEnum (minBound :: CharType)
-                      max = fromEnum (maxBound :: CharType)
-                      app v (vs, g) = (toEnum v : vs, g)
+genTypes :: (RandomGen g) => Int -> State g [CharType]
+genTypes len = replicateM len (toEnum <$> uniformRSt (min, max))
+               where
+                   min = fromEnum (minBound :: CharType)
+                   max = fromEnum (maxBound :: CharType)
 
 -- | For every character type in the typelist generates a character
 -- while using new seed for every new generated value
-genCharsForTypes :: (RandomGen g) => [CharType] -> g -> (String, g)
-genCharsForTypes [] g = ([], g)
-genCharsForTypes (t : ts) g = let (c, g') = genChar t g
-                              in c `ap` genCharsForTypes ts g'
-                              where
-                                  ap c (cs, g) = (c : cs, g)
+genCharsForTypes :: (RandomGen g) => [CharType] -> State g String
+genCharsForTypes = mapM genChar
 
-genPassword :: (RandomGen g) => Int -> g -> (String, g)
-genPassword len g = let (types, g') = genTypes len g
-                    in genCharsForTypes types g'
+genPassword :: (RandomGen g) => Int -> State g String
+genPassword = genCharsForTypes <=< genTypes
 
 -- | IO operation that creates the new seed, runs RNG functions
 -- against that seed, and prints the result
 genPass :: Int -> IO ()
 genPass l = do
     gen <- newStdGen
-    let (pass, _) = genPassword l gen
+    let (pass, _) = runState (genPassword l) gen
     putStrLn pass
 
