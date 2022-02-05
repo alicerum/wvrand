@@ -19,7 +19,7 @@ maintainer:         alice.rum@redhat.com
 -- A copyright notice.
 -- copyright:
 -- category:
-extra-source-files: CHANGELOG.md
+-- extra-source-files: CHANGELOG.md
 
 library
     exposed-modules:  Command.Bytes, Command.Dice,
