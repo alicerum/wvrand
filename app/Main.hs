@@ -10,20 +10,20 @@ data Command = Bytes | LazyBytes | Password Int | Dice String deriving (Show)
 newtype Options = Options Command deriving (Show)
 
 bytesCommand :: Parser Command
-bytesCommand = pure Bytes
+bytesCommand = pure Bytes <**> helper
 
 lazyBytesCommand :: Parser Command
-lazyBytesCommand = pure LazyBytes
+lazyBytesCommand = pure LazyBytes <**> helper
 
 diceCommand :: Parser Command
 diceCommand = Dice <$> strOption (long "diceval"
                                 <> short 'd'
-                                <> help "Dice description, i.e. '1d6'")
+                                <> help "Dice description, i.e. '1d6'") <**> helper
 
 passwordCommand :: Parser Command
 passwordCommand = Password <$> option auto (long "length"
                                            <> short 'l'
-                                           <> help "Generated password length" )
+                                           <> help "Generated password length" ) <**> helper
 
 readOptions :: Parser Options
 readOptions = Options <$> subparser

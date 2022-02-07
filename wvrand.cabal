@@ -48,7 +48,6 @@ executable wvrand
     -- other-extensions:
     build-depends:
         base ^>=4.14.3.0,
-        optics,
         optparse-applicative,
         wvrand
 
